@@ -1,4 +1,4 @@
-# jacopo_Blockchain_data_collection_
+# Blockchain_data_collection_
 
 # README.md
 
