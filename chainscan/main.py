@@ -5,41 +5,64 @@ import requests
 from pycoingecko import CoinGeckoAPI
 import pandas as pd 
 import json
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 
 ##
 # for the execution of the code after activating virtual enviroment: 
 # source .venv/bin/activate 
 # uvicorn main:app --reload
+# include your API key in the URL or as an X-API-Key header when making 
+# requests to Alchemy's production endpoints. The URL structure for a production endpoint 
+# would look something like:https://eth-mainnet.g.alchemy.com/v2/YOUR_API_KEY   . 
+# Register a application after an account on alchemy and retrieve the api_key 
 # #
 
 
-
-
-app = FastAPI()
-
-
-@app.get("/")
-def read_root():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     chain =  """
-     .--""--.
-    /        \\
-   |          |     ___
-   \\   .--.   /   |   \   ___  _____  ___
-    `- /  \\ -'    |    \ |   |   |   |   |
-      |    |       |     ||---|   |   |---|
-      \\  /        |_____||   |   |   |   |
-       \\/      
-       /\\
-      /  \\
-     |    |
-    .- \\  / -.
-   /   '--'   \\
-  |            |
-   \\          /
-    `--------'
+                                                                                     
+      _____               _____    ____   ____        ____    ____  _____   ______   
+ ___|\     \          ___|\    \  |    | |    |  ____|\   \  |    ||\    \ |\     \  
+|    |\     \        /    /\    \ |    | |    | /    /\    \ |    | \\    \| \     \ 
+|    | |     |      |    |  |    ||    |_|    ||    |  |    ||    |  \|    \  \     |
+|    | /_ _ /   |   |    |  |____||    .-.    ||    |__|    ||    |   |     \  |    |
+|    |\    \  --|-- |    |   ____ |    | |    ||    .--.    ||    |   |      \ |    |
+|    | |    |   |   |    |  |    ||    | |    ||    |  |    ||    |   |    |\ \|    |
+|____|/____/|       |\ ___\/    /||____| |____||____|  |____||____|   |____||\_____/|
+|    /     ||       | |   /____/ ||    | |    ||    |  |    ||    |   |    |/ \|   ||
+|____|_____|/        \|___|    | /|____| |____||____|  |____||____|   |____|   |___|/
+  \(    )/             \( |____|/   \(     )/    \(      )/    \(       \(       )/  
+   '    '               '   )/       '     '      '      '      '        '       '   
+                            '                                                        
+                                                                                     
+     _____          ____   _________________       ____                              
+ ___|\    \    ____|\   \ /                 \ ____|\   \                             
+|    |\    \  /    /\    \\______     ______//    /\    \                            
+|    | |    ||    |  |    |  \( /    /  )/  |    |  |    |                           
+|    | |    ||    |__|    |   ' |   |   '   |    |__|    |                           
+|    | |    ||    .--.    |     |   |       |    .--.    |                           
+|    | |    ||    |  |    |    /   //       |    |  |    |                           
+|____|/____/||____|  |____|   /___//        |____|  |____|                           
+|    /    | ||    |  |    |  |`   |         |    |  |    |                           
+|____|____|/ |____|  |____|  |____|         |____|  |____|                           
+  \(    )/     \(      )/      \(             \(      )/                             
+   '    '       '      '        '              '      '                              
+    -Test For coins and blockchain data-
+        Use curl to Pass Parameters: 
+        Use the curl command in the
+        terminal to call the API 
+        endpoints and pass the required
+        parameters. 
+        For example:
+        curl "http://127.0.0.1:8000/ohlc_price/?coin=bitcoin"
 """
     print(chain)
-    return {"Test For coins and blockchain data"}
+    yield
+
+app = FastAPI(lifespan=lifespan)
+
 
 
 @app.get("/items/{item_id}")
@@ -72,10 +95,9 @@ def get_btc_price():
 
 """ The following method can be used for every specific coin """
 @app.get("/ohlc_price/")
-def get_ohlc_price(coin):
+def get_ohlc_price(coin: str):
     cg = CoinGeckoAPI()
-    ohlc = cg.get_coin_ohlc_by_id( id =coin, vs_currency="usd", days="30")
-    print(ohlc)
+    ohlc = cg.get_coin_ohlc_by_id(id=coin, vs_currency="usd", days="30")
     
     #Each data point is represented as a dictionary. #
     #When you create a pandas DataFrame using 
@@ -85,11 +107,18 @@ def get_ohlc_price(coin):
     
     df_ohlc = pd.DataFrame(ohlc)
     df_ohlc.columns = ["date", "open", "high", "low", "close"]
-    df_ohlc.set_index('date',inplace=True)
-    return df_ohlc
+    df_ohlc.set_index('date', inplace=True)
+    return df_ohlc.to_dict()
 
+"""
+
+Use a tool like curl or a browser to call the /ohlc_price/ endpoint with the desired coin as a query parameter. For example:
+curl "http://127.0.0.1:8000/ohlc_price/?coin=bitcoin"
+View the Output: The response will return the OHLC data for the specified coin in JSON format.
+
+"""
 @app.get("/address_history/")
-def get_address_history(fromAddress):
+def get_address_history(fromAddress:str):
     data = json.dumps({
         "jsonrpc": "2.0",
         "id": 0,
@@ -121,7 +150,7 @@ def get_address_history(fromAddress):
 # Function returns a json of the transaction correposnding to the address specified 
 # it traces the transaction acros the blockchain
 @app.get("/trace_transaction/")
-def trace_transaction(address): 
+def trace_transaction(address:str): 
     url = "https://eth-mainnet.g.alchemy.com/v2/docs-demo"
     payload = {
         "id": 1,
@@ -138,7 +167,7 @@ def trace_transaction(address):
 
 
 # It can be used to get a trace of all the transactions 
-# in a given block.
+# in a given block. To use trace functions we must have a Growth or enterpize api profiles. 
 @app.get("/trace_block/")
 def trace_block(): 
     url = "https://eth-mainnet.g.alchemy.com/v2/docs-demo"
@@ -202,5 +231,103 @@ def unified_ETH(item_id: int, q: Union[str, None] = None, fromAddress: str = Non
 
     return result.json()
 
+"""
+Use curl to Pass Parameters: Use the curl command in the terminal to call the API endpoints and pass the required parameters. For example:
+curl "http://127.0.0.1:8000/ohlc_price/?coin=bitcoin"
+For /address_history/:
+curl "http://127.0.0.1:8000/address_historyomAddress=0xYourAddressHere/?fr"
+For /trace_transaction/:
+curl "http://127.0.0.1:8000/trace_transaction/?address=0xYourTransactionHashHere"
+For /block_info/:
+curl "http://127.0.0.1:8000/block_info/?block_address=0xYourBlockHashHere"
+For /unified_ETH/:
+curl "http://127.0.0.1:8000/unified_ETH/?item_id=1&q=test&fromAddress=0xYourAddressHere&address=0xYourTransactionHashHere&block_address=0xYourBlockHashHere"
 
+The response will be displayed in the terminal as JSON data.
+
+"""
+# The Transfers API allows you to easily fetch historical transactions for any address across Ethereum and supported L2s including Polygon, Arbitrum, and Optimism.
+@app.get("/asset_transfers/")
+def get_asset_transfers(address: str):
+    url = "https://eth-mainnet.g.alchemy.com/v2/docs-demo"
+
+    payload = {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "alchemy_getAssetTransfers",
+        "params": [
+            {
+                "fromBlock": "0x0",
+                "toBlock": "latest",
+                "toAddress": address,
+                "category": ["external"],
+                "order": "asc",
+                "withMetadata": True,
+                "excludeZeroValue": True,
+                "maxCount": "0x3e8"
+            }
+        ]
+    }
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json"
+    }
+
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        return {"error": f"An error occurred: {e}"}
+    
+# Method that calls to retrieve transaction receipts for a specific block, Extracting data for analysis, Building a blockchain explorer,
+@app.get("/transaction_recipt")
+def transaction_recipt(blocknumber: str): 
+                
+    url = "https://eth-mainnet.g.alchemy.com/v2/API-KEY"
+
+    payload = {
+        "id": 1,
+        "jsonrpc": "2.0",
+        "method": "alchemy_getTransactionReceipts",
+        "params": [{ "blockNumber": blocknumber }]
+    }
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json"
+    }
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        return {"error": f"An error occurred: {e}"}
+
+@app.get("/aggregate_data/")
+def aggregate_data(
+    fromAddress: str = None,
+    address: str = None,
+    block_address: str = None,
+    blocknumber: str = None
+):
+    result = {}
+
+    # Include address history
+    if fromAddress:
+        result["address_history"] = json.loads(get_address_history(fromAddress))
+
+    # Include transaction trace
+    if address:
+        result["transaction_trace"] = json.loads(trace_transaction(address))
+        result["asset_transfer"] = json.loads(get_asset_transfers(address))
+
+    # Include block info
+    if block_address:
+        result["block_info"] = get_block_info(block_address)
+
+    # Include transaction receipt
+    if blocknumber:
+        result["transaction_receipt"] = transaction_recipt(blocknumber)
+    
+    return result
 
